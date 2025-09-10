@@ -1,148 +1,102 @@
 import tkinter as tk
-from tkinter import messagebox, simpledialog, scrolledtext
+from tkinter import messagebox
 
-class NoteApp(tk.Tk):
-    def __init__(self):
-        super().__init__()
-        self.title("Заметки с ответвлениями")
-        self.geometry("700x500")
-        self.resizable(False, False)
+notes = []
 
-        # Данные: две ветки заметок
-        self.branches = {
-            "Ветка 1": [],
-            "Ветка 2": []
-        }
-        self.current_branch = None
-        self.current_note_index = None
+def clear_window():
+    """Удаляет все виджеты из главного окна."""
+    for widget in root.winfo_children():
+        widget.destroy()
 
-        self.create_widgets()
-        self.show_start_page()
+def show_start_screen():
+    """Показывает начальный экран с двумя кнопками."""
+    clear_window()
+    title = tk.Label(root, text="Простое приложение заметок", font=("Arial", 18, "bold"))
+    title.pack(pady=20)
 
-    def create_widgets(self):
-        # Верхняя панель с кнопками переключения веток
-        self.top_frame = tk.Frame(self)
-        self.top_frame.pack(side=tk.TOP, fill=tk.X)
+    btn_create = tk.Button(root, text="Создать заметку", width=25, height=2, command=show_create_note)
+    btn_create.pack(pady=10)
 
-        self.btn_branch1 = tk.Button(self.top_frame, text="Ветка 1", command=lambda: self.switch_branch("Ветка 1"))
-        self.btn_branch1.pack(side=tk.LEFT, padx=5, pady=5)
+    btn_view = tk.Button(root, text="Просмотреть заметки", width=25, height=2, command=show_view_notes)
+    btn_view.pack(pady=10)
 
-        self.btn_branch2 = tk.Button(self.top_frame, text="Ветка 2", command=lambda: self.switch_branch("Ветка 2"))
-        self.btn_branch2.pack(side=tk.LEFT, padx=5, pady=5)
+    btn_exit = tk.Button(root, text="Выход", width=25, height=2, command=confirm_exit)
+    btn_exit.pack(pady=10)
 
-        self.btn_start = tk.Button(self.top_frame, text="Начальная страница", command=self.show_start_page)
-        self.btn_start.pack(side=tk.LEFT, padx=5, pady=5)
+def show_create_note():
+    """Экран для создания новой заметки."""
+    clear_window()
+    label = tk.Label(root, text="Введите текст заметки:", font=("Arial", 14))
+    label.pack(pady=10)
 
-        # Левая панель - список заметок
-        self.left_frame = tk.Frame(self, width=200)
-        self.left_frame.pack(side=tk.LEFT, fill=tk.Y, padx=5, pady=5)
+    text_entry = tk.Text(root, width=45, height=10)
+    text_entry.pack(pady=10)
 
-        self.lbl_notes = tk.Label(self.left_frame, text="Заметки")
-        self.lbl_notes.pack()
+    def save_note():
+        note = text_entry.get("1.0", tk.END).strip()
+        if note:
+            notes.append(note)
+            messagebox.showinfo("Успех", "Заметка сохранена!")
+            show_start_screen()
+        else:
+            messagebox.showwarning("Ошибка", "Заметка не может быть пустой.")
 
-        self.listbox_notes = tk.Listbox(self.left_frame, width=30, height=25)
-        self.listbox_notes.pack(pady=5)
-        self.listbox_notes.bind("<<ListboxSelect>>", self.on_note_select)
+    btn_save = tk.Button(root, text="Сохранить", width=15, command=save_note)
+    btn_save.pack(pady=5)
 
-        self.btn_add_note = tk.Button(self.left_frame, text="Добавить заметку", command=self.add_note)
-        self.btn_add_note.pack(fill=tk.X, pady=2)
+    btn_back = tk.Button(root, text="Назад", width=15, command=show_start_screen)
+    btn_back.pack(pady=5)
 
-        self.btn_delete_note = tk.Button(self.left_frame, text="Удалить заметку", command=self.delete_note)
-        self.btn_delete_note.pack(fill=tk.X, pady=2)
+def show_view_notes():
+    """Экран для просмотра и удаления заметок."""
+    clear_window()
+    label = tk.Label(root, text="Ваши заметки:", font=("Arial", 14))
+    label.pack(pady=10)
 
-        # Правая панель - текст заметки
-        self.right_frame = tk.Frame(self)
-        self.right_frame.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True, padx=5, pady=5)
+    if not notes:
+        empty_label = tk.Label(root, text="Заметок пока нет.", font=("Arial", 12), fg="gray")
+        empty_label.pack(pady=20)
+    else:
+        frame = tk.Frame(root)
+        frame.pack(pady=5, fill="both", expand=True)
 
-        self.lbl_note_title = tk.Label(self.right_frame, text="Выберите заметку", font=("Arial", 14))
-        self.lbl_note_title.pack()
+        scrollbar = tk.Scrollbar(frame)
+        scrollbar.pack(side="right", fill="y")
 
-        self.text_note = scrolledtext.ScrolledText(self.right_frame, wrap=tk.WORD, state=tk.DISABLED)
-        self.text_note.pack(fill=tk.BOTH, expand=True)
+        listbox = tk.Listbox(frame, width=50, height=10, yscrollcommand=scrollbar.set)
+        for i, note in enumerate(notes, 1):
+            short_note = note if len(note) < 50 else note[:47] + "..."
+            listbox.insert(tk.END, f"{i}. {short_note}")
+        listbox.pack(side="left", fill="both", expand=True)
+        scrollbar.config(command=listbox.yview)
 
-        self.btn_save_note = tk.Button(self.right_frame, text="Сохранить изменения", command=self.save_note, state=tk.DISABLED)
-        self.btn_save_note.pack(pady=5)
+        def delete_selected():
+            selected = listbox.curselection()
+            if not selected:
+                messagebox.showwarning("Ошибка", "Выберите заметку для удаления.")
+                return
+            index = selected[0]
+            confirm = messagebox.askyesno("Подтверждение", "Удалить выбранную заметку?")
+            if confirm:
+                del notes[index]
+                show_view_notes()
 
-    def show_start_page(self):
-        self.current_branch = None
-        self.current_note_index = None
-        self.listbox_notes.delete(0, tk.END)
-        self.lbl_note_title.config(text="Добро пожаловать в приложение Заметки!")
-        self.text_note.config(state=tk.NORMAL)
-        self.text_note.delete(1.0, tk.END)
-        self.text_note.insert(tk.END, "Выберите ветку заметок слева, чтобы начать работу.\n\n"
-                                      "Ветка 1 и Ветка 2 — это два независимых набора заметок.\n"
-                                      "Вы можете создавать, редактировать и удалять заметки в каждой ветке.")
-        self.text_note.config(state=tk.DISABLED)
-        self.btn_save_note.config(state=tk.DISABLED)
+        btn_delete = tk.Button(root, text="Удалить выбранную заметку", width=25, command=delete_selected)
+        btn_delete.pack(pady=10)
 
-    def switch_branch(self, branch_name):
-        self.current_branch = branch_name
-        self.current_note_index = None
-        self.lbl_note_title.config(text=f"Ветка: {branch_name}")
-        self.refresh_notes_list()
-        self.text_note.config(state=tk.NORMAL)
-        self.text_note.delete(1.0, tk.END)
-        self.text_note.config(state=tk.DISABLED)
-        self.btn_save_note.config(state=tk.DISABLED)
+    btn_back = tk.Button(root, text="Назад", width=25, command=show_start_screen)
+    btn_back.pack(pady=10)
 
-    def refresh_notes_list(self):
-        self.listbox_notes.delete(0, tk.END)
-        notes = self.branches[self.current_branch]
-        for i, note in enumerate(notes):
-            title = note['title'] if note['title'] else f"Заметка {i+1}"
-            self.listbox_notes.insert(tk.END, title)
+def confirm_exit():
+    """Подтверждение выхода из приложения."""
+    if messagebox.askokcancel("Выход", "Вы действительно хотите выйти?"):
+        root.destroy()
 
-    def add_note(self):
-        if not self.current_branch:
-            messagebox.showwarning("Внимание", "Сначала выберите ветку заметок.")
-            return
-        title = simpledialog.askstring("Новая заметка", "Введите заголовок заметки:")
-        if title is None:
-            return
-        note = {"title": title, "content": ""}
-        self.branches[self.current_branch].append(note)
-        self.refresh_notes_list()
-        self.listbox_notes.select_set(tk.END)
-        self.on_note_select()
+root = tk.Tk()
+root.title("Заметки")
+root.geometry("450x450")
+root.resizable(False, False)
 
-    def delete_note(self):
-        if self.current_branch is None or self.current_note_index is None:
-            messagebox.showwarning("Внимание", "Выберите заметку для удаления.")
-            return
-        confirm = messagebox.askyesno("Удалить", "Вы уверены, что хотите удалить эту заметку?")
-        if confirm:
-            del self.branches[self.current_branch][self.current_note_index]
-            self.current_note_index = None
-            self.refresh_notes_list()
-            self.text_note.config(state=tk.NORMAL)
-            self.text_note.delete(1.0, tk.END)
-            self.text_note.config(state=tk.DISABLED)
-            self.lbl_note_title.config(text=f"Ветка: {self.current_branch}")
-            self.btn_save_note.config(state=tk.DISABLED)
+show_start_screen()
 
-    def on_note_select(self, event=None):
-        if self.current_branch is None:
-            return
-        selection = self.listbox_notes.curselection()
-        if not selection:
-            return
-        index = selection[0]
-        self.current_note_index = index
-        note = self.branches[self.current_branch][index]
-        self.lbl_note_title.config(text=note['title'])
-        self.text_note.config(state=tk.NORMAL)
-        self.text_note.delete(1.0, tk.END)
-        self.text_note.insert(tk.END, note['content'])
-        self.btn_save_note.config(state=tk.NORMAL)
-
-    def save_note(self):
-        if self.current_branch is None or self.current_note_index is None:
-            return
-        content = self.text_note.get(1.0, tk.END).rstrip()
-        self.branches[self.current_branch][self.current_note_index]['content'] = content
-        messagebox.showinfo("Сохранено", "Изменения сохранены.")
-
-if __name__ == "__main__":
-    app = NoteApp()
-    app.mainloop()
+root.mainloop()
